@@ -37,7 +37,10 @@ function createDiagram(sidebarElement, graphElement){
 	};
 	var editor={
 		sidebar: sidebar,
-		graph: graph
+		graph: graph,
+		currentSelected: null,
+		currentAction: null,
+		data: null
 	};
 	editor.graph.cells=new Array();
 	editor.graph.lines=new Array();
@@ -48,157 +51,27 @@ function createDiagram(sidebarElement, graphElement){
 	sidebarElement.appendChild(ulElement);
 	
 	graphElement.ondragover=function(evt){
+		if(editor.currentAction == "connect")
+		{
+			var startPosX = editor.data.x;
+			var startPosY = editor.data.y;
+			var endPosX = evt.pageX;
+			var endPosY = evt.pageY;
+		}
+		
 		evt.preventDefault();
 	}
 	graphElement.ondrop=function(evt){
-		if(eleCurrentDrag)
+		var node = evt.target.childNodes[0].nextSibling;
+		if(editor.currentAction=="add")
 		{
-			var dragNode = document.createElement('div');
-			var imgNode = document.createElement('img');
-			imgNode.setAttribute('src', eleCurrentDrag.src);
-			dragNode.appendChild(imgNode);
-			dragNode.style.position = 'absolute';
-			dragNode.style.top = evt.pageY+'px';
-			dragNode.style.left = evt.pageX+'px';
-			dragNode.draggable='true';
-			
-			createBrickAnchorPoint(editor, dragNode, imgNode);
-			
-			dragNode.onclick=function(){
-				editor.graph.selectedCell=dragNode;
-				imgNode.style.border='2px dashed lime';
-				if(eleLastDrag!=null)
-				{
-					for(var idx=1;idx<=5;idx++)
-					{
-						eleLastDrag.parentNode.childNodes[idx].style.visibility='hidden';
-					}
-					eleLastDrag.style.border='none';
-				}
-				eleLastDrag = imgNode;
-				for(var idx=1;idx<=5;idx++)
-				{
-					eleLastDrag.parentNode.childNodes[idx].style.visibility='visible';
-				}
-			}
-			dragNode.onmouseover=function(){
-				dragNode.style.cursor = "move";
-			}
-			
-			imgNode.ondragstart=function(evt){
-				evt.dataTransfer.effectAllowed="move";
-				evt.dataTransfer.setData('text', evt.target.innerHTML);
-				evt.dataTransfer.setDragImage(evt.target, 0, 0);
-				eleCurrentDrag = false;
-				eleModifyDrag=evt.target;
-				return true;
-			}
-			dragNode.ondragover=function(evt){
-				if(eleConnectorDrag)
-				{
-					imgNode.style.border='3px solid lime';
-				}
-			}
-			dragNode.ondragleave=function(evt){
-				imgNode.style.border='none';
-				for(var idx=1;idx<=5;idx++)
-				{
-					eleLastDrag.parentNode.childNodes[idx].style.visibility='hidden';
-				}
-			}
-			imgNode.ondrop=function(evt){
-				imgNode.style.border='none';
-				for(var idx=1;idx<=5;idx++)
-				{
-					eleLastDrag.parentNode.childNodes[idx].style.visibility='hidden';
-				}
-				if(eleConnectorDrag)
-				{
-					eleDragEndPos.X = parseElementPosProperty(dragNode.childNodes[5].style.left) + parseElementPosProperty(dragNode.style.left);
-					eleDragEndPos.Y = parseElementPosProperty(dragNode.childNodes[5].style.top) + parseElementPosProperty(dragNode.style.top);
-					
-					//alert('Start Pos: X-'+eleDragStartPos.X+',Y-'+eleDragStartPos.Y);
-					//alert('Start Pos: X-'+eleDragEndPos.X+',Y-'+eleDragEndPos.Y);
-					
-					var canvasWidth = Math.abs(eleDragEndPos.X-eleDragStartPos.X);
-					var canvasHeight = Math.abs(eleDragEndPos.Y-eleDragStartPos.Y);
-					var canvasEle = document.createElement('canvas');
-					var linContext = canvasEle.getContext('2d');
-					canvasEle.style.position='absolute';
-					canvasEle.setAttribute('width',canvasWidth);
-					canvasEle.setAttribute('height',canvasHeight);
-					canvasEle.setAttribute('class', 'line');
-					
-					if(eleDragEndPos.X < eleDragStartPos.X && eleDragEndPos.Y < eleDragStartPos.Y)//Direction: NorthWest
-					{
-						canvasEle.style.left = eleDragEndPos.X+'px';
-						canvasEle.style.top = eleDragEndPos.Y+'px';
-						linContext.beginPath();
-						linContext.moveTo(0,0);
-						
-						var scaleX = eleDragStartPos.X / canvasWidth;
-						var scaleY = eleDragStartPos.Y / canvasHeight;
-						
-						linContext.lineTo((eleDragStartPos.X / scaleX), (eleDragStartPos.Y / scaleY));
-						linContext.closePath();
-					}
-					else if(eleDragEndPos.X > eleDragStartPos.X && eleDragEndPos.Y <  eleDragStartPos.Y)
-					{
-						canvasEle.style.left = eleDragEndPos.X-canvasEle.width+'px';
-						canvasEle.style.top = eleDragEndPos.Y+'px';
-						linContext.beginPath();
-						
-						var scaleX = eleDragEndPos.X / canvasWidth;
-						var scaleY = eleDragEndPos.Y / canvasHeight;
-						
-						linContext.translate(canvasWidth, 0);
-						linContext.rotate(90);
-						linContext.moveTo(0,0);
-						linContext.lineTo((eleDragEndPos.X / scaleX), (eleDragEndPos.Y / scaleY));
-						linContext.closePath();
-					}
-					else if(eleDragEndPos.X < eleDragStartPos.X && eleDragEndPos.Y > eleDragStartPos.Y)
-					{
-						canvasEle.style.left = eleDragEndPos.X+'px';
-						canvasEle.style.top = eleDragEndPos.Y-canvasEle.height+'px';
-						linContext.beginPath();
-						
-						var scaleX = eleDragEndPos.X / canvasWidth;
-						var scaleY = eleDragEndPos.Y / canvasHeight;
-						
-						linContext.translate(canvasWidth, 0);
-						linContext.rotate(90);
-						linContext.moveTo(0,0);
-						linContext.lineTo((eleDragEndPos.X / scaleX), (eleDragEndPos.Y / scaleY));
-						linContext.closePath();
-					}
-					else if(eleDragEndPos.X > eleDragStartPos.X && eleDragEndPos.Y > eleDragStartPos.Y)
-					{
-						canvasEle.style.left = eleDragEndPos.X-canvasEle.width+'px';
-						canvasEle.style.top = eleDragEndPos.Y-canvasEle.height+'px';
-						linContext.beginPath();
-						
-						var scaleX = eleDragEndPos.X / canvasWidth;
-						var scaleY = eleDragEndPos.Y / canvasHeight;
-						
-						linContext.moveTo(0,0);
-						linContext.lineTo((eleDragEndPos.X / scaleX), (eleDragEndPos.Y / scaleY));
-						linContext.closePath();
-					}
-					linContext.fillStyle='#000000';
-					linContext.fill();
-					linContext.lineWidth=2;
-					linContext.strokeStyle='lime';
-					linContext.stroke();
-					graphElement.appendChild(canvasEle);
-				}
-			}
-			graphElement.appendChild(dragNode);
+			//New added node
+			hideBoudingBox(editor.currentSelected);
+			editor.currentSelected = createNewNode(editor, eleCurrentDrag.src, evt);
+			showBoundingBox(editor.currentSelected);
 		}
-		else if(eleModifyDrag)
+		else if(editor.currentAction=="edit")
 		{
-			//alert('Modify');
-			
 			var pX;
 			var pY;
 			//if(evt.pageX!=undefined && evt.pageX!=null)
@@ -209,14 +82,11 @@ function createDiagram(sidebarElement, graphElement){
 				brickElement.style.top= pY +'px';
 				brickElement.style.left=pX +'px';
 			//}
+			//Modify Position
+			showBoundingBox(editor.currentSelected);
 		}
-		else if(eleConnectorDrag)
+		else if(editor.currentAction=="resizeNW")
 		{
-		}
-		else if(eleResizeDragNodeNW)
-		{
-			//alert('Resize');
-			
 			eleDragEndPos.X = evt.pageX;
 			eleDragEndPos.Y = evt.pageY;
 			
@@ -242,7 +112,7 @@ function createDiagram(sidebarElement, graphElement){
 			
 			updateBrickAnchorPointPos(dragNode);
 		}
-		else if(eleResizeDragNodeNE)
+		else if(editor.currentAction=="resizeNE")
 		{
 			//alert('Resize');
 			eleDragEndPos.X = evt.pageX;
@@ -270,7 +140,7 @@ function createDiagram(sidebarElement, graphElement){
 			
 			updateBrickAnchorPointPos(dragNode);
 		}
-		else if(eleResizeDragNodeSW)
+		else if(editor.currentAction=="resizeSW")
 		{
 			//alert('Resize');
 			eleDragEndPos.X = evt.pageX;
@@ -297,7 +167,7 @@ function createDiagram(sidebarElement, graphElement){
 			
 			updateBrickAnchorPointPos(dragNode);
 		}
-		else if(eleResizeDragNodeSE)
+		else if(editor.currentAction=="resizeSE")
 		{
 			//alert('Resize');
 			eleDragEndPos.X = evt.pageX;
@@ -324,9 +194,179 @@ function createDiagram(sidebarElement, graphElement){
 			
 			updateBrickAnchorPointPos(dragNode);
 		}
+		else if(editor.currentAction=="connect")
+		{
+			
+		}
 	}
 	
 	return editor;
+}
+
+function addSidebarBrick(editor, imgSrc){
+	var liNode=document.createElement('li');
+	liNode.style.padding='5px';
+	
+	var imgNode = document.createElement('img');
+	imgNode.setAttribute('src', imgSrc);
+	imgNode.setAttribute('class', 'diagram-brick');
+	imgNode.setAttribute('draggable', 'true');
+	imgNode.ondragstart=function(evt){
+		editor.currentAction = "add";
+		evt.dataTransfer.effectAllowed="move";
+		evt.dataTransfer.setData('text', evt.target.innerHTML);
+		evt.dataTransfer.setDragImage(evt.target, 0, 0);
+		eleCurrentDrag = evt.target;
+		return true;
+	}
+	imgNode.ondragend=function(evt){
+		evt.dataTransfer.clearData('text');
+		eleCurrentDrag=null;
+		return false;
+	}
+	liNode.appendChild(imgNode);
+	editor.sidebar.element.childNodes[1].appendChild(liNode);
+}
+
+
+function createNewNode(editor, src, evt)
+{
+	var graphElement = editor.graph.element;
+	
+	var dragNode = document.createElement('div');
+	var imgNode = document.createElement('img');
+	imgNode.setAttribute('src', src);
+	dragNode.appendChild(imgNode);
+	dragNode.style.position = 'absolute';
+	dragNode.style.top = evt.pageY+'px';
+	dragNode.style.left = evt.pageX+'px';
+	dragNode.draggable='true';
+	
+	createBrickAnchorPoint(editor, dragNode, imgNode);
+	
+	dragNode.onclick=function(){
+		hideBoudingBox(editor.currentSelected);
+		editor.currentSelected = dragNode;
+		showBoundingBox(editor.currentSelected);
+		
+		editor.graph.selectedCell=dragNode;
+	}
+	dragNode.onmouseover=function(){
+		dragNode.style.cursor = "move";
+	}
+	
+	imgNode.ondragstart=function(evt){
+		editor.currentAction = "edit";
+		evt.dataTransfer.effectAllowed="move";
+		evt.dataTransfer.setData('text', evt.target.innerHTML);
+		evt.dataTransfer.setDragImage(evt.target, 0, 0);
+		eleCurrentDrag = false;
+		eleModifyDrag=evt.target;
+		return true;
+	}
+	dragNode.ondragover=function(evt){
+		if(eleConnectorDrag)
+		{
+			imgNode.style.border='3px solid lime';
+		}
+	}
+	dragNode.ondragleave=function(evt){
+		imgNode.style.border='none';
+		for(var idx=1;idx<=5;idx++)
+		{
+			eleLastDrag.parentNode.childNodes[idx].style.visibility='hidden';
+		}
+	}
+	imgNode.ondrop=function(evt){
+		imgNode.style.border='none';
+		for(var idx=1;idx<=5;idx++)
+		{
+			eleLastDrag.parentNode.childNodes[idx].style.visibility='hidden';
+		}
+		if(eleConnectorDrag)
+		{
+			eleDragEndPos.X = parseElementPosProperty(dragNode.childNodes[5].style.left) + parseElementPosProperty(dragNode.style.left);
+			eleDragEndPos.Y = parseElementPosProperty(dragNode.childNodes[5].style.top) + parseElementPosProperty(dragNode.style.top);
+			
+			//alert('Start Pos: X-'+eleDragStartPos.X+',Y-'+eleDragStartPos.Y);
+			//alert('Start Pos: X-'+eleDragEndPos.X+',Y-'+eleDragEndPos.Y);
+			
+			var canvasWidth = Math.abs(eleDragEndPos.X-eleDragStartPos.X);
+			var canvasHeight = Math.abs(eleDragEndPos.Y-eleDragStartPos.Y);
+			var canvasEle = document.createElement('canvas');
+			var linContext = canvasEle.getContext('2d');
+			canvasEle.style.position='absolute';
+			canvasEle.setAttribute('width',canvasWidth);
+			canvasEle.setAttribute('height',canvasHeight);
+			canvasEle.setAttribute('class', 'line');
+			
+			if(eleDragEndPos.X < eleDragStartPos.X && eleDragEndPos.Y < eleDragStartPos.Y)//Direction: NorthWest
+			{
+				canvasEle.style.left = eleDragEndPos.X+'px';
+				canvasEle.style.top = eleDragEndPos.Y+'px';
+				linContext.beginPath();
+				linContext.moveTo(0,0);
+				
+				var scaleX = eleDragStartPos.X / canvasWidth;
+				var scaleY = eleDragStartPos.Y / canvasHeight;
+				
+				linContext.lineTo((eleDragStartPos.X / scaleX), (eleDragStartPos.Y / scaleY));
+				linContext.closePath();
+			}
+			else if(eleDragEndPos.X > eleDragStartPos.X && eleDragEndPos.Y <  eleDragStartPos.Y)
+			{
+				canvasEle.style.left = eleDragEndPos.X-canvasEle.width+'px';
+				canvasEle.style.top = eleDragEndPos.Y+'px';
+				linContext.beginPath();
+				
+				var scaleX = eleDragEndPos.X / canvasWidth;
+				var scaleY = eleDragEndPos.Y / canvasHeight;
+				
+				linContext.translate(canvasWidth, 0);
+				linContext.rotate(90);
+				linContext.moveTo(0,0);
+				linContext.lineTo((eleDragEndPos.X / scaleX), (eleDragEndPos.Y / scaleY));
+				linContext.closePath();
+			}
+			else if(eleDragEndPos.X < eleDragStartPos.X && eleDragEndPos.Y > eleDragStartPos.Y)
+			{
+				canvasEle.style.left = eleDragEndPos.X+'px';
+				canvasEle.style.top = eleDragEndPos.Y-canvasEle.height+'px';
+				linContext.beginPath();
+				
+				var scaleX = eleDragEndPos.X / canvasWidth;
+				var scaleY = eleDragEndPos.Y / canvasHeight;
+				
+				linContext.translate(canvasWidth, 0);
+				linContext.rotate(90);
+				linContext.moveTo(0,0);
+				linContext.lineTo((eleDragEndPos.X / scaleX), (eleDragEndPos.Y / scaleY));
+				linContext.closePath();
+			}
+			else if(eleDragEndPos.X > eleDragStartPos.X && eleDragEndPos.Y > eleDragStartPos.Y)
+			{
+				canvasEle.style.left = eleDragEndPos.X-canvasEle.width+'px';
+				canvasEle.style.top = eleDragEndPos.Y-canvasEle.height+'px';
+				linContext.beginPath();
+				
+				var scaleX = eleDragEndPos.X / canvasWidth;
+				var scaleY = eleDragEndPos.Y / canvasHeight;
+				
+				linContext.moveTo(0,0);
+				linContext.lineTo((eleDragEndPos.X / scaleX), (eleDragEndPos.Y / scaleY));
+				linContext.closePath();
+			}
+			linContext.fillStyle='#000000';
+			linContext.fill();
+			linContext.lineWidth=2;
+			linContext.strokeStyle='lime';
+			linContext.stroke();
+			graphElement.appendChild(canvasEle);
+		}
+	}
+	graphElement.appendChild(dragNode);
+	
+	return dragNode;
 }
 
 function createBrickAnchorPoint(editor, dragNode, imgNode){
@@ -342,6 +382,7 @@ function createBrickAnchorPoint(editor, dragNode, imgNode){
 	dragLinkNW.style.cursor='nw-resize';
 	dragLinkNW.draggable='true';
 	dragLinkNW.ondragstart=function(evt){
+		editor.currentAction="resizeNW";
 		evt.dataTransfer.effectAllowed='move';
 		evt.dataTransfer.setData('text', evt.target.innerHTML);
 		evt.dataTransfer.setDragImage(evt.target, 0,0);
@@ -374,6 +415,8 @@ function createBrickAnchorPoint(editor, dragNode, imgNode){
 	dragLinkNE.style.cursor='ne-resize';
 	dragLinkNE.draggable='true';
 	dragLinkNE.ondragstart=function(evt){
+		editor.currentAction="resizeNE";
+		
 		evt.dataTransfer.effectAllowed='move';
 		evt.dataTransfer.setData('text', evt.target.innerHTML);
 		evt.dataTransfer.setDragImage(evt.target, 0, 0);
@@ -406,6 +449,7 @@ function createBrickAnchorPoint(editor, dragNode, imgNode){
 	dragLinkSW.style.cursor='sw-resize';
 	dragLinkSW.draggable='true';
 	dragLinkSW.ondragstart=function(evt){
+		editor.currentAction="resizeSW";
 		evt.dataTransfer.effectAllowed='move';
 		evt.dataTransfer.setData('text', evt.target.innerHTML);
 		evt.dataTransfer.setDragImage(evt.target, 0,0);
@@ -438,6 +482,7 @@ function createBrickAnchorPoint(editor, dragNode, imgNode){
 	dragLinkSE.style.cursor='se-resize';
 	dragLinkSE.draggable='true';
 	dragLinkSE.ondragstart=function(evt){
+		editor.currentAction="resizeSE";
 		evt.dataTransfer.effectAllowed='move';
 		evt.dataTransfer.setData('text', evt.target.innerHTML);
 		evt.dataTransfer.setDragImage(evt.target, 0,0);
@@ -451,6 +496,8 @@ function createBrickAnchorPoint(editor, dragNode, imgNode){
 		editor.graph.selectedCell=null;
 		eleDragStartPos.X = evt.pageX;
 		eleDragStartPos.Y = evt.pageY;
+		
+		
 		return true;
 	}
 	dragLinkSE.ondragend=function(evt){
@@ -471,6 +518,7 @@ function createBrickAnchorPoint(editor, dragNode, imgNode){
 	dragConnector.style.cursor='pointer';
 	dragConnector.draggable='true';
 	dragConnector.ondragstart=function(evt){
+		editor.currentAction="connect";
 		evt.dataTransfer.effectAllowed='move';
 		evt.dataTransfer.setData('text', evt.target.innerHTML);
 		evt.dataTransfer.setDragImage(evt.target, 0,0);
@@ -484,6 +532,10 @@ function createBrickAnchorPoint(editor, dragNode, imgNode){
 		eleConnectorDrag=dragConnector;
 		eleDragStartPos.X = evt.pageX;
 		eleDragStartPos.Y = evt.pageY;
+		editor.data = {
+			x: evt.pageX,
+			y: evt.pageY
+		};
 		return true;
 	}
 	dragConnector.ondragend=function(evt){
@@ -514,37 +566,55 @@ function updateBrickAnchorPointPos(dragNode)
 	dragConnector.style.left=imgNode.width/2+'px';
 }
 
-function hideBrickAnchorPoint(dragNode){
-	
-}
-
-function addSidebarBrick(editor, imgSrc){
-	var liNode=document.createElement('li');
-	liNode.style.padding='5px';
-	
-	var imgNode = document.createElement('img');
-	imgNode.setAttribute('src', imgSrc);
-	imgNode.setAttribute('class', 'diagram-brick');
-	imgNode.setAttribute('draggable', 'true');
-	imgNode.ondragstart=function(evt){
-		evt.dataTransfer.effectAllowed="move";
-		evt.dataTransfer.setData('text', evt.target.innerHTML);
-		evt.dataTransfer.setDragImage(evt.target, 0, 0);
-		eleCurrentDrag = evt.target;
-		return true;
-	}
-	imgNode.ondragend=function(evt){
-		evt.dataTransfer.clearData('text');
-		eleCurrentDrag=null;
-		return false;
-	}
-	liNode.appendChild(imgNode);
-	editor.sidebar.element.childNodes[1].appendChild(liNode);
-}
-
 function parseElementPosProperty(posProperty){
 	var propertyVal = posProperty;
 	var idx = propertyVal.indexOf('p');
 	var val = propertyVal.substr(0, idx);
 	return parseFloat(val);
+}
+
+function showBoundingBox(selectedNode)
+{
+	if(selectedNode!=null)
+	{
+	 	var imgNode = selectedNode.childNodes[0];
+		imgNode.style.border='2px dashed lime';
+		for(var idx=1;idx<=5;idx++)
+		{
+			selectedNode.childNodes[idx].style.visibility='visible';
+		}
+	}
+}
+
+function hideBoudingBox(selectedNode)
+{
+	if(selectedNode!=null)
+	{
+	 	var imgNode = selectedNode.childNodes[0];
+		imgNode.style.border='none';
+		for(var idx=1;idx<=5;idx++)
+		{
+			selectedNode.childNodes[idx].style.visibility='hidden';
+		}
+	}
+}
+
+function hideBrickAnchorPoint(dragNode){
+	if(dragNode!=null)
+	{
+		for(var idx=1;idx<=5;idx++)
+		{
+			dragNode.childNodes[idx].style.visibility='hidden';
+		}
+	}
+}
+
+function showBrickAnchorPoint(dragNode){
+	if(dragNode!=null)
+	{
+		for(var idx=1;idx<=5;idx++)
+		{
+			dragNode.childNodes[idx].style.visibility='visible';
+		}
+	}
 }

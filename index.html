@@ -33,16 +33,19 @@
 		</style>
 		<script type="text/javascript" src="js/diagram.js"></script>
 		<script type="text/javascript">
+			window.onload = function(){
+				main(document.getElementById('sidebar'),document.getElementById('graph'))
+			}
+			
 			function main(sidebarElement, graphElement){
 				var editor = createDiagram(sidebarElement, graphElement);
 				
 				addSidebarBrick(editor, 'img/rect.png');
 				addSidebarBrick(editor, 'img/circle.png');
-				
 			}
 		</script>
 	</head>
-	<body onload="main(document.getElementById('sidebar'),document.getElementById('graph'))">
+	<body>
 		<div id="editor">
 			<div id="sidebar">
 			</div>
